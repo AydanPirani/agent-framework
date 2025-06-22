@@ -37,10 +37,10 @@ class ClickAction(Action):
 @dataclass
 class TypeAction(Action):
     """Type text into an element."""
-    def __init__(self, selector: str, text: str):
+    def __init__(self, selector: str, text: str, press_enter: bool = False):
         super().__init__(
             action_type="type",
-            parameters={"selector": selector, "text": text}
+            parameters={"selector": selector, "text": text, "press_enter": press_enter}
         )
 
 @dataclass

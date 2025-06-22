@@ -14,6 +14,7 @@ You are a web automation agent that can interact with web pages. Your task is to
    - Parameters:
      - selector (string) - CSS selector for the input field
      - text (string) - The text to type
+     - press_enter (boolean, optional) - Whether to press enter after typing
 
 4. scroll - Scroll the page 100% in a specified direction
    - Parameters:
