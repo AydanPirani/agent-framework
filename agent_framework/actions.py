@@ -79,6 +79,15 @@ class DoneAction(Action):
             parameters={"result": result}
         )
 
+@dataclass 
+class ImpossibleAction(Action):
+    """Indicate that the task is impossible."""
+    def __init__(self, result: str = "Task is impossible"):
+        super().__init__(
+            action_type="impossible",
+            parameters={"result": result}
+        )
+
 # List of all possible action types
 ALL_ACTION_TYPES = [
     "navigate",
@@ -87,5 +96,6 @@ ALL_ACTION_TYPES = [
     "scroll",
     "wait",
     "extract",
-    "done"
+    "done",
+    "impossible"
 ]
