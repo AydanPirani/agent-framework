@@ -98,9 +98,13 @@ class BrowserAgent:
             text: Text to type
             timeout: Optional timeout in seconds
         """
+        print("Finding element: ", selector)
         element = self.find_element(selector, timeout)
+        print("Clearing element: ", selector)
         element.clear()
+        print("Typing text into", selector)
         element.send_keys(text)
+        print("Typed text into ", selector)
         # if press_enter:
         #     self.press_enter()
 
