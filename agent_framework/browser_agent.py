@@ -1,10 +1,11 @@
 """
-Browser Agent - A Selenium-based web automation agent.
+Browser Agent - A Selenium-based web automation agent using Firefox.
 """
 import time
 from typing import Optional, Dict, Any
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service as ChromeService
+from selenium.webdriver.firefox.service import Service as FirefoxService
+from selenium.webdriver.firefox.options import Options as FirefoxOptions
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -13,35 +14,42 @@ from selenium.common.exceptions import (
     TimeoutException,
     WebDriverException
 )
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.chrome.options import Options
+from webdriver_manager.firefox import GeckoDriverManager
 from selenium.webdriver.remote.webelement import WebElement
+from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
 
 class BrowserAgent:
-    """A Selenium-based web automation agent with support for various actions."""
+    """A Selenium-based web automation agent with support for various actions using Firefox."""
     
     def __init__(self, headless: bool = False, implicit_wait: int = 10):
         """
-        Initialize the BrowserAgent.
+        Initialize the BrowserAgent with Firefox.
         
         Args:
             headless: If True, run the browser in headless mode
             implicit_wait: Default wait time in seconds for element operations
         """
-        self.options = Options()
+        self.options = FirefoxOptions()
+        
+        # Set headless mode if requested
         if headless:
             self.options.add_argument("--headless")
-            self.options.add_argument("--disable-gpu")
         
-        # Add common options for better stability
-        self.options.add_argument("--no-sandbox")
-        self.options.add_argument("--disable-dev-shm-usage")
+        # Set common preferences for better stability and automation
+        self.options.set_preference("browser.cache.disk.enable", False)
+        self.options.set_preference("browser.cache.memory.enable", False)
+        self.options.set_preference("browser.cache.offline.enable", False)
+        self.options.set_preference("network.http.use-cache", False)
+        self.options.set_preference("devtools.jsonview.enabled", True)
         
-        # Set up Chrome with automatic driver management
-        self.service = ChromeService(ChromeDriverManager().install())
-        self.driver = webdriver.Chrome(service=self.service, options=self.options)
+        # Set up Firefox with automatic driver management
+        self.service = FirefoxService(GeckoDriverManager().install())
+        self.driver = webdriver.Firefox(service=self.service, options=self.options)
         self.driver.implicitly_wait(implicit_wait)
         self.wait = WebDriverWait(self.driver, implicit_wait)
+        
+        # Set page load timeout
+        self.driver.set_page_load_timeout(30)
     
     # Core browser actions
     def navigate(self, url: str) -> None:
@@ -221,11 +229,28 @@ class BrowserAgent:
         Returns:
             bytes: The screenshot as PNG data
         """
-        screenshot = self.driver.get_screenshot_as_png()
-        if path:
-            with open(path, 'wb') as f:
-                f.write(screenshot)
-        return screenshot
+        try:
+            # Use full page screenshot if available (Firefox 58+)
+            if hasattr(self.driver, 'get_full_page_screenshot_as_png'):
+                screenshot = self.driver.get_full_page_screenshot_as_png()
+            else:
+                screenshot = self.driver.get_screenshot_as_png()
+                
+            if path:
+                with open(path, 'wb') as f:
+                    f.write(screenshot)
+            return screenshot
+            
+        except Exception as e:
+            # Fallback to standard screenshot if full page fails
+            try:
+                screenshot = self.driver.get_screenshot_as_png()
+                if path:
+                    with open(path, 'wb') as f:
+                        f.write(screenshot)
+                return screenshot
+            except Exception as e2:
+                raise Exception(f"Failed to take screenshot: {str(e2)}") from e2
     
     # Browser control
     def back(self) -> None:

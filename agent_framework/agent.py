@@ -160,6 +160,9 @@ class Agent:
             
             Current page: {context.get('title', 'Unknown')}
             URL: {context.get('url', 'Unknown')}
+
+            Previous Action: {self.history[-1].get('action', {})}
+            Previous Result: {self.history[-1].get('result', {})}
             
             What should I do next to complete the task?
             """
