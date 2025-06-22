@@ -44,7 +44,7 @@ Your response must be a JSON object with the following structure:
       "param2": "value2"
     }
   },
-  "reasoning": "Your reasoning for choosing this action"
+  "reasoning": "Your reasoning for choosing this action. If you see a screenshot or similar image attached, describe it in detail."
 }
 
 ## Important Notes

@@ -13,7 +13,7 @@ from .actions import (
     Action, NavigateAction, ClickAction, TypeAction,
     ScrollAction, WaitAction, ExtractAction, DoneAction, ImpossibleAction
 )
-from .config import MODEL_NAME, MODEL_TEMPERATURE
+from .config import MODEL_NAME, MODEL_TEMPERATURE, SCREENSHOT_DIR
 
 class Agent:
     """
@@ -61,17 +61,30 @@ class Agent:
             "title": "Unknown",
             "screenshot": None,
             "screenshot_format": None,
-            "timestamp": time.time()
+            "html": None,
+            "timestamp": time.localtime()
         }
         
         try:
             # Get basic page info
             context["url"] = self.browser.get_current_url()
             context["title"] = self.browser.get_page_title()
+            context["html"] = self.browser.get_page_source()
             
             # Take a screenshot and encode it as base64
             try:
                 screenshot = self.browser.take_screenshot()
+
+                # save screenshot to local directory
+                if screenshot:
+                    ts_str = time.strftime("%Y%m%d_%H%M%S", context['timestamp'])
+                    if isinstance(screenshot, bytes):
+                        with open(f"{SCREENSHOT_DIR}/screenshot_{ts_str}.png", "wb") as f:
+                            f.write(screenshot)
+                    elif isinstance(screenshot, str):
+                        with open(f"{SCREENSHOT_DIR}/screenshot_{ts_str}.png", "w") as f:
+                            f.write(screenshot)
+
                 if screenshot:
                     if isinstance(screenshot, bytes):
                         context["screenshot"] = base64.b64encode(screenshot).decode('utf-8')
@@ -156,11 +169,13 @@ class Agent:
                 context = self.get_page_context()
                 
                 # Get the next action from the LLM with full context
+                print("Before LLM step")
                 response = self.llm.get_next_action(
                     prompt=prompt,
-                    html=self.browser.get_page_source(),
+                    html=context.get("html"),
                     image=context.get("screenshot")  # Pass the base64-encoded screenshot
                 )
+                print("After LLM step")
                 
                 action_data = response.get("action", {})
                 action_type = action_data.get("action_type")
