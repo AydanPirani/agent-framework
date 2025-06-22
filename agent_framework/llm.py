@@ -33,24 +33,40 @@ class LLMClient:
         with open(image_path, "rb") as image_file:
             return base64.b64encode(image_file.read()).decode('utf-8')
     
-    def _process_image(self, image: Union[str, Path, bytes, None]) -> Optional[Dict[str, str]]:
-        """Process an image for the API request."""
-        if image is None:
+    def _process_image(self, image: Union[str, bytes, None]) -> Optional[Dict[str, str]]:
+        """
+        Process an image for the API request.
+        
+        Args:
+            image: Base64-encoded image string or bytes
+            
+        Returns:
+            Formatted image data for the API or None if invalid
+        """
+        if not image:
             return None
             
-        if isinstance(image, (str, Path)):
-            if not Path(image).exists():
-                raise FileNotFoundError(f"Image file not found: {image}")
-            image_data = self._encode_image(image)
-        elif isinstance(image, bytes):
-            image_data = base64.b64encode(image).decode('utf-8')
-        else:
-            raise ValueError("Image must be a file path or bytes")
+        try:
+            if isinstance(image, bytes):
+                # Convert bytes to base64 string
+                image_data = base64.b64encode(image).decode('utf-8')
+            elif isinstance(image, str):
+                # Assume it's already base64 encoded
+                image_data = image
+            else:
+                self.log(f"Unsupported image type: {type(image)}")
+                return None
+                
+            return {
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/png;base64,{image_data}"
+                }
+            }
             
-        return {
-            "type": "image_url",
-            "image_url": {"url": f"data:image/jpeg;base64,{image_data}"}
-        }
+        except Exception as e:
+            self.log(f"Error processing image: {str(e)}")
+            return None
     
     def _process_html(self, html: Optional[str]) -> Optional[Dict[str, str]]:
         """Process HTML content for the API request."""
@@ -65,14 +81,14 @@ class LLMClient:
     def get_next_action(
         self,
         prompt: str,
-        image: Optional[Union[str, Path, bytes]] = None,
+        image: Optional[Union[str, bytes]] = None,
         html: Optional[str] = None
     ) -> Dict[str, Any]:
         """Get the next action from the LLM.
         
         Args:
             prompt: The user's prompt/instruction
-            image: Optional image (path or bytes) for vision models
+            image: Optional base64-encoded image string or bytes for vision models
             html: Optional HTML content of the current page
             
         Returns:
@@ -90,9 +106,25 @@ class LLMClient:
         if html_content := self._process_html(html):
             messages[1]["content"].append(html_content)
         
-        # Add image if provided
-        if image_content := self._process_image(image):
-            messages[1]["content"].append(image_content)
+        # Handle image - can be base64 string or bytes
+        if image:
+            if isinstance(image, str):
+                # Already base64 string
+                image_data = image
+            elif isinstance(image, bytes):
+                # Convert bytes to base64 string
+                image_data = base64.b64encode(image).decode('utf-8')
+            else:
+                self.log(f"Unsupported image type: {type(image)}")
+                image_data = None
+                
+            if image_data:
+                messages[1]["content"].append({
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/png;base64,{image_data}"
+                    }
+                })
         
         # If content is a list with a single item, unwrap it
         if len(messages[1]["content"]) == 1:

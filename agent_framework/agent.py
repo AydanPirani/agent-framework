@@ -3,6 +3,7 @@ Agent module that coordinates between the LLM and browser to execute tasks.
 """
 import json
 import time
+import base64
 from typing import Dict, Any, Optional, List, Union
 from pathlib import Path
 
@@ -49,17 +50,44 @@ class Agent:
             print(f"[{level.upper()}] {message}")
     
     def get_page_context(self) -> Dict[str, Any]:
-        """Get the current page context including URL, title, and a screenshot."""
+        """
+        Get the current page context including URL, title, and a screenshot.
+        
+        Returns:
+            Dict containing page context with screenshot as base64-encoded string
+        """
+        context = {
+            "url": "unknown",
+            "title": "Unknown",
+            "screenshot": None,
+            "screenshot_format": None,
+            "timestamp": time.time()
+        }
+        
         try:
-            return {
-                "url": self.browser.get_current_url(),
-                "title": self.browser.get_page_title(),
-                "screenshot": None,  # Can be added if needed
-                "timestamp": time.time()
-            }
+            # Get basic page info
+            context["url"] = self.browser.get_current_url()
+            context["title"] = self.browser.get_page_title()
+            
+            # Take a screenshot and encode it as base64
+            try:
+                screenshot = self.browser.take_screenshot()
+                if screenshot:
+                    if isinstance(screenshot, bytes):
+                        context["screenshot"] = base64.b64encode(screenshot).decode('utf-8')
+                        context["screenshot_format"] = "base64_png"
+                    elif isinstance(screenshot, str):
+                        # If it's already a string, assume it's base64
+                        context["screenshot"] = screenshot
+                        context["screenshot_format"] = "base64_png"
+            except Exception as e:
+                self.log(f"Warning: Could not take screenshot: {str(e)}", "warning")
+                
         except Exception as e:
-            self.log(f"Error getting page context: {e}", "error")
-            return {}
+            self.log(f"Error getting page context: {str(e)}", "error")
+            context["error"] = str(e)
+            
+        return context
     
     def execute_action(self, action: Action) -> Dict[str, Any]:
         """
@@ -124,10 +152,14 @@ class Agent:
             """
             
             try:
-                # Get the next action from the LLM
+                # Get the current page context including screenshot
+                context = self.get_page_context()
+                
+                # Get the next action from the LLM with full context
                 response = self.llm.get_next_action(
                     prompt=prompt,
-                    html=self.browser.get_page_source()
+                    html=self.browser.get_page_source(),
+                    image=context.get("screenshot")  # Pass the base64-encoded screenshot
                 )
                 
                 action_data = response.get("action", {})

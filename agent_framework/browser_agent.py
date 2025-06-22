@@ -101,8 +101,8 @@ class BrowserAgent:
         element = self.find_element(selector, timeout)
         element.clear()
         element.send_keys(text)
-        if press_enter:
-            self.press_enter()
+        # if press_enter:
+        #     self.press_enter()
 
     
     def get_text(self, selector: str, timeout: Optional[float] = None) -> str:
@@ -339,6 +339,7 @@ class BrowserAgent:
                 result["message"] = f"Unknown action type: {action_type}"
                 
         except Exception as e:
+            print(e)
             result["message"] = f"Error executing {action_type}: {str(e)}"
             
         return result
